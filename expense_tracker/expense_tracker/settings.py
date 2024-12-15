@@ -39,6 +39,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'djoser',
+    'drf_spectacular',
     'catalog.apps.CatalogConfig',
     'user.apps.UserConfig',
 ]
