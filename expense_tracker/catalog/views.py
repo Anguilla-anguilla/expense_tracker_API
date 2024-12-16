@@ -107,3 +107,9 @@ class ExpenseDetailAPIVIew(APIView):
         return Response(expense_serializer.errors, 
                         status=status.HTTP_400_BAD_REQUEST)
     
+    def delete(self, request, expense_id):
+        expense_instance = self.get_expense(expense_id, request.user.id)
+        if not expense_instance:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        expense_instance.delete()
+        return Response(status=status.HTTP_200_OK)
