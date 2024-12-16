@@ -49,9 +49,9 @@ class ExpenseDetailAPIVIew(APIView):
     permission_classes = [IsAuthenticated, IsOwner]
     authentication_classes = [JWTAuthentication]
 
-    def get_expense(self, expence_id):
+    def get_expense(self, expence_id, user_id):
         try:
-            return Expense.objects.get(id=expence_id)
+            return Expense.objects.get(id=expence_id, user=user_id)
         except Expense.DoesNotExist:
             return None
 
@@ -73,11 +73,37 @@ class ExpenseDetailAPIVIew(APIView):
         return category
 
     def get(self, request, expense_id):
-        expense_instance = self.get_expense(expense_id)
+        expense_instance = self.get_expense(expense_id, request.user.id)
         if not expense_instance:
             return Response(status=status.HTTP_404_NOT_FOUND)
         expense_serializer = ExpenseSerializer(instance=expense_instance)
-        return Response(expense_serializer.data,
-                        status=status.HTTP_200_OK)
+        return Response(expense_serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(request=ExpenseSerializer)
+    def put(self, request, expense_id):
+        expense_instance = self.get_expense(expense_id, request.user.id)
+        if not expense_instance:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        data = {'user': request.user.id}                 
+        if request.data.get('description'):
+            data['description'] = request.data.get('description')
+        if request.data.get('amount'):
+            data['amount'] = request.data.get('amount')
+        if request.data.get('category'):
+            category_name = request.data.get('category')
+            category = self.check_category(category_name)
+            data['category'] = category
+
+        expense_serializer = ExpenseSerializer(instance=expense_instance,
+                                               data=data,
+                                               partial=True,
+                                               context={'request': request})
         
+        if expense_serializer.is_valid():
+            expense_serializer.save()
+            return Response(expense_serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(expense_serializer.errors, 
+                        status=status.HTTP_400_BAD_REQUEST)
+    
