@@ -46,6 +46,15 @@ class ExpenseAPIView(APIView):
 
 
 class ExpenseDetailAPIVIew(APIView):
+    permission_classes = [IsAuthenticated, IsOwner]
+    authentication_classes = [JWTAuthentication]
+
+    def get_expense(self, expence_id):
+        try:
+            return Expense.objects.get(id=expence_id)
+        except Expense.DoesNotExist:
+            return None
+
     def get_category(self, category_name):
         try:
             return Category.objects.get(category=category_name)
@@ -62,3 +71,13 @@ class ExpenseDetailAPIVIew(APIView):
             else:
                 return None
         return category
+
+    def get(self, request, expense_id):
+        expense_instance = self.get_expense(expense_id)
+        if not expense_instance:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        expense_serializer = ExpenseSerializer(instance=expense_instance)
+        return Response(expense_serializer.data,
+                        status=status.HTTP_200_OK)
+
+        
