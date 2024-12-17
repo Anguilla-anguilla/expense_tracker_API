@@ -1,4 +1,4 @@
-from rest_framework import status, generics
+from rest_framework import status, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -6,13 +6,23 @@ from user.permissions import IsOwner
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 from datetime import datetime
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter
 
+from .filters import ExpenseFilter
 from .models import Expense, Category
 from .serializers import ExpenseSerializer, CategorySerializer
 
 
-class ExpenseListView:
-    pass
+class ExpenseViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, IsOwner]
+    authentication_classes = [JWTAuthentication]
+
+    queryset = Expense.objects.all()
+    serializer_class = ExpenseSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = ExpenseFilter
+    ordering_fields = ['createdAt']
 
 
 class ExpenseAPIView(APIView):
@@ -99,14 +109,14 @@ class ExpenseDetailAPIVIew(APIView):
                                                data=data,
                                                partial=True,
                                                context={'request': request})
-        
+
         if expense_serializer.is_valid():
             expense_serializer.save()
             return Response(expense_serializer.data, status=status.HTTP_200_OK)
-        
+    
         return Response(expense_serializer.errors, 
                         status=status.HTTP_400_BAD_REQUEST)
-    
+
     def delete(self, request, expense_id):
         expense_instance = self.get_expense(expense_id, request.user.id)
         if not expense_instance:
