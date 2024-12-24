@@ -13,8 +13,8 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Expense
-        fields = ['description', 'amount', 'category',
-                  'category_id', 'user_id', 'createdAt']
+        fields = ['id', 'description', 'amount', 'category',
+                  'category_id', 'createdAt', 'user_id']
 
     def get_category(self, obj):
         if obj.category_id:

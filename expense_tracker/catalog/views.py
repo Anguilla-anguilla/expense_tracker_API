@@ -76,7 +76,7 @@ class ExpenseDetailAPIVIew(GenericAPIView):
 
     def get_expense(self, expence_id, user_id):
         try:
-            return Expense.objects.get(id=expence_id, user=user_id)
+            return Expense.objects.get(id=expence_id, user_id=user_id)
         except Expense.DoesNotExist:
             return None
 
