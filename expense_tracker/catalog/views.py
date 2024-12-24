@@ -1,6 +1,7 @@
 from rest_framework import status, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.generics import GenericAPIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from user.permissions import IsOwner
 from rest_framework.permissions import IsAuthenticated
@@ -14,6 +15,19 @@ from .models import Expense, Category
 from .serializers import ExpenseSerializer, CategorySerializer
 
 
+def get_or_create_category(category_name):
+    try:
+        return Category.objects.get(category=category_name)
+    except Category.DoesNotExist:
+        category_serializer = CategorySerializer(data={'category':
+                                                        category_name})
+        if category_serializer.is_valid():
+            category = category_serializer.save()
+        else:
+            return None
+    return category
+
+
 class ExpenseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwner]
     authentication_classes = [JWTAuthentication]
@@ -25,18 +39,19 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     ordering_fields = ['createdAt']
 
 
-class ExpenseAPIView(APIView):
+class ExpenseAPIView(GenericAPIView):
     permission_classes = [IsAuthenticated, IsOwner]
     authentication_classes = [JWTAuthentication]
 
     @extend_schema(request=ExpenseSerializer)
     def post(self, request):
-        expense_detail_view = ExpenseDetailAPIVIew()
-        
         category_name = request.data.get('category')
-        category = expense_detail_view.check_category(category_name)
+        category = get_or_create_category(category_name)
         if not category:
             return Response({'error': 'Invalid category'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if int(request.data.get('amount')) < 0:
+            return Response({'error': 'Invalid amount'},
                             status=status.HTTP_400_BAD_REQUEST)
         
         data = {
@@ -55,7 +70,7 @@ class ExpenseAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ExpenseDetailAPIVIew(APIView):
+class ExpenseDetailAPIVIew(GenericAPIView):
     permission_classes = [IsAuthenticated, IsOwner]
     authentication_classes = [JWTAuthentication]
 
@@ -64,23 +79,6 @@ class ExpenseDetailAPIVIew(APIView):
             return Expense.objects.get(id=expence_id, user=user_id)
         except Expense.DoesNotExist:
             return None
-
-    def get_category(self, category_name):
-        try:
-            return Category.objects.get(category=category_name)
-        except Category.DoesNotExist:
-            return None
-        
-    def check_category(self, category_name):
-        category = self.get_category(category_name)
-        if not category:
-            category_serializer = CategorySerializer(data={'category':
-                                                            category_name})
-            if category_serializer.is_valid():
-                category = category_serializer.save()
-            else:
-                return None
-        return category
 
     def get(self, request, expense_id):
         expense_instance = self.get_expense(expense_id, request.user.id)
@@ -99,10 +97,13 @@ class ExpenseDetailAPIVIew(APIView):
         if request.data.get('description'):
             data['description'] = request.data.get('description')
         if request.data.get('amount'):
+            if int(request.data.get('amount')) < 0:
+                return Response({'error': 'Invalid amount'},
+                                status=status.HTTP_400_BAD_REQUEST)
             data['amount'] = request.data.get('amount')
         if request.data.get('category'):
             category_name = request.data.get('category')
-            category = self.check_category(category_name)
+            category = get_or_create_category(category_name)
             data['category'] = category
 
         expense_serializer = ExpenseSerializer(instance=expense_instance,
